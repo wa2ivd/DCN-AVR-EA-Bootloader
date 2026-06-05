@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\wa2iv\\\\.claude\\\\projects\\\\\" 2>&1)",
+      "Read(//c/Users/wa2iv/.claude/**)"
+    ]
+  }
+}

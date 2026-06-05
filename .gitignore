@@ -1,0 +1,47 @@
+# Build outputs
+build/
+out/
+_build/
+*.o
+*.d
+*.elf
+*.hex
+*.map
+*.lst
+*.lss
+*.eep
+*.bin
+*.a
+
+# MPLAB X
+*.X/build/
+*.X/dist/
+*.X/debug/
+*.X/nbproject/private/
+*.X/nbproject/Makefile-genesis.properties
+*.X/nbproject/Makefile-impl.mk
+*.X/nbproject/Makefile-local-*.mk
+*.X/nbproject/Makefile-variables.mk
+*.X/nbproject/Package-*.bash
+*.X/nbproject/Makefile-*.mk
+MPLABXLog*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+.cache/
+compile_commands.json
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Python (host tools)
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/

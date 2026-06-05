@@ -1,0 +1,31 @@
+# Default: normalize text line endings on commit, check out native
+* text=auto
+
+# Source files — force LF in the repo
+*.c       text eol=lf
+*.h       text eol=lf
+*.S       text eol=lf
+*.s       text eol=lf
+*.ld      text eol=lf
+*.py      text eol=lf
+*.md      text eol=lf
+*.mk      text eol=lf
+Makefile  text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.json    text eol=lf
+*.toml    text eol=lf
+
+# Windows scripts keep CRLF
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# Binary — never munge
+*.pdf     binary
+*.hex     binary
+*.bin     binary
+*.elf     binary
+*.png     binary
+*.jpg     binary
+*.ico     binary
