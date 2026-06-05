@@ -21,7 +21,14 @@
 /* UART selection — set BL_USART to the device's USART instance (USART0,
  * USART1, ...) and the bus/wiring-specific CTRLA / CTRLB values. CTRLC
  * is hardcoded to 8N1 inside bl_uart.c. Default omits both registers,
- * giving you plain push-pull TX and no RS-485 mode. */
+ * giving you plain push-pull TX and no RS-485 mode.
+ *
+ * RS-485 gotcha: if you set the RS485 field in CTRLA to "EXT" (mode 01)
+ * so the USART drives an external transceiver's DE/~RE, the XDIRn pin's
+ * alternate-function override only kicks in when that pin's PORTx.DIR
+ * bit is set to output. BL_PORT_INIT must include it explicitly — the
+ * USART won't set DIR for you, and without it your bootloader TX bytes
+ * are written to TXDATAL but never make it onto the differential bus. */
 #define BL_USART           USART0
 #define BL_BAUD            9600UL                /* REQUIRED */
 /* #define BL_USART_CTRLA  0x00 */

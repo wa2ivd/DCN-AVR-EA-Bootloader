@@ -63,11 +63,16 @@
 /* Port setup:
  *   PORTA.PIN0 — USART0 TXD/RXD (open-drain single-wire). Idle high,
  *                direction = output.
+ *   PORTA.PIN3 — USART0 XDIR0 (RS-485 EXT driver-enable). Must be
+ *                DIR=output for the USART's RS485-mode alternate-function
+ *                override to take control of the pin; otherwise the
+ *                external transceiver is stuck in RX and bootloader
+ *                responses never reach the bus.
  *   PORTC.PIN[0..3] — DCN address BCD switch, input with pull-up.
  */
 #define BL_PORT_INIT()  do {                                               \
     PORTA.OUT       = (uint8_t)(PORTA.OUT       |  0x01);                  \
-    PORTA.DIR       = (uint8_t)(PORTA.DIR       |  0x01);                  \
+    PORTA.DIR       = (uint8_t)(PORTA.DIR       |  0x09);                  \
     PORTC.DIR       = (uint8_t)(PORTC.DIR       & ~0x0F);                  \
     PORTC.PIN0CTRL  = PORT_PULLUPEN_bm;                                    \
     PORTC.PIN1CTRL  = PORT_PULLUPEN_bm;                                    \

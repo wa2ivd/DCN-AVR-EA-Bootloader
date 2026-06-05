@@ -29,6 +29,7 @@ mistake.
 ```
 DCN-AVR-EA-Bootloader/
 ├── Makefile                    avr-gcc build (make PRODUCT=SPS-1)
+├── build.sh                    Windows wrapper that finds MPLAB tools + DFP
 ├── src/                        portable bootloader sources
 │   ├── bl_main.c               entry, decision logic, main loop
 │   ├── bl_uart.c / .h          minimal polled USART driver
@@ -55,8 +56,25 @@ DCN-AVR-EA-Bootloader/
 ### Building the bootloader
 
 Requires `avr-gcc` (or XC8 for AVR, which is avr-gcc underneath) with the
-AVR EA device pack installed, plus GNU make and a Unix-ish shell. On
-Windows the MPLAB X / XC8 install bundles all of this.
+AVR EA device pack installed, plus GNU make and a Unix-ish shell.
+
+**Windows (MPLAB X + XC8 installed):** use the build wrapper. It auto-locates
+the latest XC8, MPLAB X, and AVR-Ex DFP installs under `C:\Program Files\`
+and forwards everything else to `make`.
+
+```sh
+./build.sh PRODUCT=SPS-1            # full build
+./build.sh PRODUCT=SPS-1 clean      # any make target works
+./build.sh DFP=/custom/path PRODUCT=SPS-1   # override the auto-discovered DFP
+```
+
+Run it from git-bash or MSYS2 — the Makefile uses `rm -rf` / `mkdir -p`, so a
+bash environment is required either way. Toolchain locations the wrapper checks
+are documented in the header of [build.sh](build.sh).
+
+**Linux / macOS:** put `avr-gcc` and the DFP somewhere the compiler can find
+them and call `make` directly (or `./build.sh`, which becomes a thin pass-through
+on non-Windows hosts).
 
 ```sh
 make PRODUCT=SPS-1
@@ -136,15 +154,17 @@ trigger-detection macros. See the template for the full list.
 
 ## Status / open items
 
-This is a v1 written against the AVR EA datasheet (DS40002443A) but not
-yet bench-validated. Known points to verify on first silicon:
+First bench bring-up on the SPS-1 confirmed BLINFO request/response over
+the DCN bus. Remaining points to verify:
 
 - The `jmp BL_APP_START` inline-asm in `bl_main.c` produces the expected
   4-byte encoding. Inspect the `.lss` output around `jump_to_app`.
 - Per-page program time at 9600 baud → total update time is acceptable
   for production use (~2.5 minutes for a full 60 KB image).
-- The SPS-1's existing single-wire half-duplex UART setup matches the
-  values used here (`CTRLA=0x09`, `CTRLB=RXEN|TXEN|ODME`).
+- ~~SPS-1 UART config (`CTRLA=0x09`, `CTRLB=RXEN|TXEN|ODME`) matches the
+  application's setup~~ — bench-confirmed. Note that RS-485 mode 1 also
+  requires the XDIR pin's PORT.DIR bit set to output; this is handled in
+  the SPS-1 product config's `BL_PORT_INIT` (PA3 alongside PA0).
 
 See `docs/DESIGN.md` for the full rationale and a list of carrying-over
 open questions.
