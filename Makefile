@@ -116,11 +116,15 @@ lss:   $(TARGET).lss
 
 size: $(TARGET).elf
 	@$(SIZE) -C --mcu=$(MCU) $< || $(SIZE) -A $<
-	@# Sum every .text* section, since -ffunction-sections splits them up.
-	@text_size=$$( $(SIZE) -A $< | awk '/^\.text/{s+=$$2} END{print s+0}' ); \
-	echo "Total .text* size: $$text_size  /  BOOT limit: $(BOOT_SIZE) bytes"; \
-	if [ $$text_size -gt $(BOOT_SIZE) ]; then \
-	    echo "ERROR: bootloader text ($$text_size B) overflows BOOT section ($(BOOT_SIZE) B)."; \
+	@# Sum every section that ends up in flash: .text* (split by -ffunction-sections),
+	@# .rodata* (PROGMEM string literals and lookup tables), and .data (initializers
+	@# get a copy in flash even though they live in SRAM at runtime). Counting only
+	@# .text* previously missed ~600 B of rodata strings and let a near-overflow slip
+	@# silently right up to the BOOT/APPCODE boundary.
+	@flash_size=$$( $(SIZE) -A $< | awk '/^\.(text|rodata|data)/{s+=$$2} END{print s+0}' ); \
+	echo "Total flash footprint: $$flash_size  /  BOOT limit: $(BOOT_SIZE) bytes"; \
+	if [ $$flash_size -gt $(BOOT_SIZE) ]; then \
+	    echo "ERROR: bootloader flash footprint ($$flash_size B) overflows BOOT section ($(BOOT_SIZE) B)."; \
 	    echo "       Either trim it or grow BL_FUSE_BOOTSIZE (and BOOT_SIZE) together."; \
 	    exit 1; \
 	fi

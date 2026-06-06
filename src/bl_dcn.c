@@ -159,7 +159,15 @@ static void handle_blerase(const char *p, const char *end)
 
     uint16_t last_page = (uint16_t)(e & (uint16_t)~(uint16_t)((uint16_t)BL_PAGE_SIZE - 1u));
     bl_nvm_status_t st = bl_nvm_erase_range(s, last_page);
-    if (st != BL_NVM_OK) { emit_nak('E', true, s); return; }
+    if (st != BL_NVM_OK) {
+        /* For 'E' the addr field is not meaningful (the controller failed
+         * on some page in the range), so we repurpose it to report the
+         * bl_nvm_status_t code: 1=WRITEPROTECT, 2=CMDCOLLISION,
+         * 3=WRONGSECTION, 4=UNKNOWN. Saves a firmware rebuild to find out
+         * which class of failure the NVMCTRL is reporting. */
+        emit_nak('E', true, (uint16_t)st);
+        return;
+    }
 
     /* New erase resets the sequence-number tracking. */
     have_seq = false;

@@ -133,8 +133,18 @@ A single ASCII letter in the field after `BLNAK`:
 | `V`  | Whole-image verify CRC mismatch                                |
 
 The NAK frame's second field is the relevant address (page address for
-BLDATA, range start for BLERASE, the bootloader's computed CRC for
-BLVERIFY).
+BLDATA, the bootloader's computed CRC for BLVERIFY).
+
+For BLERASE `E` (NVMCTRL hardware error) the field is repurposed to a
+diagnostic status code rather than an address, since the controller can
+fail on any page in the range:
+
+| Value | Meaning                                                  |
+|-------|----------------------------------------------------------|
+| `0001`| WRITEPROTECT — APPCODEWP or BOOTRP bit blocks the write  |
+| `0002`| CMDCOLLISION — CMD sequencing error in NVMCTRL           |
+| `0003`| WRONGSECTION — target address rejected for current CMD   |
+| `0004`| UNKNOWN — non-zero ERROR field outside the values above  |
 
 ## Timing notes
 

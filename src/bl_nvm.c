@@ -4,49 +4,85 @@
 #include <avr/pgmspace.h>
 
 /*
- * The AVR EA NVMCTRL self-programming flow (per datasheet §11.3.2):
+ * The AVR EA NVMCTRL self-programming flow.
  *
- *   Page erase only:
- *     1. Wait until NVMCTRL.STATUS.FLBUSY == 0
- *     2. Dummy SPM to any byte in the target page (latches address)
- *     3. CCP-unlock (SPM key) + write CMD = FLPER
- *     4. Wait for FLBUSY == 0
+ * Datasheet §11.3.2 offers two equivalent paths for accessing flash:
  *
- *   Page write (page must already be erased):
- *     1. Wait until FLBUSY == 0
- *     2. SPM each word of the page into the page buffer
- *     3. CCP-unlock (SPM key) + write CMD = FLPW
- *     4. Wait for FLBUSY == 0
+ *   (a) Code-space via LPM/SPM with the Z-pointer.
+ *   (b) Data-space via LD/ST through the 32 KB window at MAPPED_PROGMEM_START
+ *       (0x8000). NVMCTRL.CTRLB.FLMAP selects which 32 KB flash section is
+ *       visible in the window.
  *
- * The Z-pointer (R30:R31) holds the byte address. SPM writes the word in
- * R0:R1 into the page buffer slot determined by Z. R1 must be restored to 0
- * after SPM because the compiler relies on r1==0 as an ABI invariant.
+ * The bootloader uses path (b). On the AVR64EA28 we saw on the bench, the
+ * SPM page-buffer load was silently dropped — FLPW/FLPERW returned ERROR=0
+ * but the flash page never changed, so ACKs came back without any commit.
+ * Switching to plain ST writes through the mapped window made writes stick.
+ *
+ * Per §11.3.2.3 Option 1, the page-programming flow we use is:
+ *
+ *   1. wait FLBUSY=0
+ *   2. CTRLA = NOOP            (clear any prior command)
+ *   3. point FLMAP at the section containing the target page
+ *   4. fill the page buffer by writing each byte through the mapped window
+ *   5. CTRLA = FLPERW          (erase + write in one combined commit)
+ *   6. wait FLBUSY=0, check STATUS.ERROR
+ *
+ * Page erase alone uses the same flow but with a single dummy byte write
+ * at step 4 and FLPER at step 5.
+ *
+ * Other porting gotchas worth keeping in mind:
+ *   - CTRLA needs CCP unlock with the SPM key (_PROTECTED_WRITE_SPM).
+ *     CTRLB needs CCP unlock with the IOREG key (_PROTECTED_WRITE).
+ *   - Use NOOP (0x01) rather than NOCMD (0x00) as the inter-command reset.
+ *     On EA, NOCMD can leave the CMD state machine in a state where the
+ *     next FLPER/FLPW raises CMDCOLLISION.
+ *   - Do not write NVMCTRL.STATUS to "clear" ERROR. ERROR clears
+ *     automatically when the next command issues; writing STATUS can
+ *     itself trip CMDCOLLISION.
  */
+
+/* The mapped flash window starts at MAPPED_PROGMEM_START (0x8000 on EA) and
+ * is 32 KB wide. The low 15 bits of any byte address inside the currently-
+ * mapped section index into the window. */
+#ifndef MAPPED_PROGMEM_START
+#  define MAPPED_PROGMEM_START 0x8000u
+#endif
+#define BL_MAPPED_WINDOW_MASK  0x7FFFu
 
 static inline void nvm_nop_cmd(void)
 {
-    _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_NOCMD_gc);
+    /* NOOP, not NOCMD — see the file-level comment block. */
+    _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_NOOP_gc);
 }
 
-static inline void spm_write_word(uint16_t addr, uint16_t word)
+/* Aim the 0x8000+ data-space window at the 32 KB flash section containing
+ * `flash_addr`. On 64 KB EA parts there are exactly two sections (0 and 1).
+ * Skips the CCP-protected write if FLMAP already matches. */
+static inline void nvm_point_flmap_at(uint16_t flash_addr)
 {
-    __asm__ __volatile__ (
-        "push r0       \n\t"
-        "movw r0,  %A1 \n\t"   /* data → r0:r1                    */
-        "movw r30, %A0 \n\t"   /* addr → Z                        */
-        "spm           \n\t"   /* store word into page buffer     */
-        "clr  r1       \n\t"   /* restore r1==0 invariant         */
-        "pop  r0       \n\t"
-        :
-        : "r" (addr), "r" (word)
-        : "r30", "r31"
-    );
+    uint8_t want = (uint8_t)((flash_addr >= 0x8000u)
+                             ? NVMCTRL_FLMAP_SECTION1_gc
+                             : NVMCTRL_FLMAP_SECTION0_gc);
+    uint8_t cur  = NVMCTRL.CTRLB;
+    if ((cur & NVMCTRL_FLMAP_gm) == want) return;
+    _PROTECTED_WRITE(NVMCTRL.CTRLB,
+                     (uint8_t)((cur & (uint8_t)~NVMCTRL_FLMAP_gm) | want));
+}
+
+/* Returns a data-space pointer that aliases `flash_addr` in the mapped
+ * window. The caller must have called nvm_point_flmap_at(flash_addr) first;
+ * otherwise the pointer aliases a different flash byte in the wrong section. */
+static inline volatile uint8_t *nvm_mapped_ptr(uint16_t flash_addr)
+{
+    return (volatile uint8_t *)(uint16_t)
+           (MAPPED_PROGMEM_START | (flash_addr & BL_MAPPED_WINDOW_MASK));
 }
 
 static bl_nvm_status_t map_status(void)
 {
+    /* Don't write STATUS. ERROR is cleared automatically when the next
+     * command issues; on EA, a manual W1C attempt can trip CMDCOLLISION. */
     uint8_t err = (uint8_t)((NVMCTRL.STATUS & NVMCTRL_ERROR_gm) >> NVMCTRL_ERROR_gp);
-    NVMCTRL.STATUS = (uint8_t)NVMCTRL_ERROR_gm;  /* W1C the error field */
     switch (err) {
         case 0: return BL_NVM_OK;
         case 2: return BL_NVM_ERR_WRITEPROTECT;
@@ -67,7 +103,8 @@ void bl_nvm_init(void)
      * FLMAPLOCK=0. Required so the bootloader can write APPCODE. The
      * register is CCP-protected with the IOREG key. */
     _PROTECTED_WRITE(NVMCTRL.CTRLB, 0x00);
-    NVMCTRL.STATUS = (uint8_t)NVMCTRL_ERROR_gm;  /* clear any stale error */
+    /* Do not poke NVMCTRL.STATUS here. See map_status() and the file-level
+     * comment for why. */
 }
 
 bool bl_nvm_is_busy(void)
@@ -80,10 +117,13 @@ bl_nvm_status_t bl_nvm_page_erase(uint16_t addr)
     wait_flash_ready();
     nvm_nop_cmd();
 
-    /* Dummy SPM to a word in the target page sets the address for FLPER. */
-    spm_write_word(addr, 0xFFFFu);
-
+    /* Per datasheet §11.3.2.4: arm FLPER first, then a single dummy ST to
+     * the target page through the mapped window triggers the actual erase.
+     * CMD must be set BEFORE the ST or the ST is ignored. */
+    nvm_point_flmap_at(addr);
     _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_FLPER_gc);
+    *nvm_mapped_ptr(addr) = 0xFFu;
+
     wait_flash_ready();
     return map_status();
 }
@@ -106,14 +146,18 @@ bl_nvm_status_t bl_nvm_page_write(uint16_t addr, const uint8_t *data)
     wait_flash_ready();
     nvm_nop_cmd();
 
-    /* Fill page buffer one word at a time. The page buffer is cleared by
-     * the previous Page Erase, so we only fill — no buffer-clear command. */
-    for (uint16_t i = 0; i < (uint16_t)BL_PAGE_SIZE; i = (uint16_t)(i + 2)) {
-        uint16_t w = (uint16_t)data[i] | (uint16_t)((uint16_t)data[i + 1] << 8);
-        spm_write_word((uint16_t)(addr + i), w);
+    /* Per datasheet §11.3.2.3 Option 1: fill page buffer FIRST, then issue
+     * FLPERW which commits the buffer. (Section 11.3.2.4's "CMD enables /
+     * ST/SPM applies" wording reads the other way around but the explicit
+     * step list in 11.3.2.3 and Microchip's own MCC reference both fill
+     * the buffer before the command write.) */
+    nvm_point_flmap_at(addr);
+    volatile uint8_t *p = nvm_mapped_ptr(addr);
+    for (uint16_t i = 0; i < (uint16_t)BL_PAGE_SIZE; i++) {
+        p[i] = data[i];
     }
 
-    _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_FLPW_gc);
+    _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_FLPERW_gc);
     wait_flash_ready();
     return map_status();
 }
