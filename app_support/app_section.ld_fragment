@@ -1,11 +1,16 @@
 /*
  * Linker fragment for the application side, if you prefer a custom
- * linker script over the `-Wl,--section-start=.text=0x0800` command-line
- * flag.
+ * linker script over the
+ * `-Wl,--defsym=__TEXT_REGION_ORIGIN__=0x1000` command-line flag.
  *
  * For most projects the command-line flag is simpler — this file is here
  * only for builds that already maintain a custom .ld and want everything
  * in one place.
+ *
+ * Note: the alternative flag `-Wl,--section-start=.text=0x1000` works
+ * under plain avr-gcc but is rejected by the XC8 v3 linker wrapper. The
+ * `defsym` form (which redefines the memory region's origin rather than
+ * positioning the section) works under both.
  *
  * If you DO use a custom .ld, derive it from the avr-libc default for
  * your specific AVR EA part and replace the MEMORY block's "text" region

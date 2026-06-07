@@ -79,21 +79,39 @@ class HexImage:
         self.data[addr] = value & 0xFF
 
     def to_file(self, path: Path, bytes_per_record: int = 16) -> None:
-        """Write Intel HEX. Always emits 16-bit-address data records,
-        which is sufficient for any AVR EA in this family (64 KB flash)."""
+        """Write Intel HEX. Emits :02000004 extended-linear-address records
+        whenever the data crosses a 64 KB boundary, so AVR EA memory regions
+        above the 16-bit window (EEPROM at 0x810000+, fuses at 0x820000+,
+        USERROW at 0x850000+) round-trip correctly through this tool. A
+        single data record never spans a 64 KB boundary, because its in-
+        record address field is only 16 bits."""
         if not self.data:
             raise ValueError("nothing to write")
         addrs = sorted(self.data.keys())
+        # -1 is a sentinel meaning "no segment record emitted yet". Segment 0
+        # is implicit in Intel HEX (the parser starts there), so we only emit
+        # an explicit :02000004 when transitioning away from 0 or arriving in
+        # a non-zero segment.
+        cur_segment = -1
         with path.open("w", encoding="ascii", newline="\n") as f:
             i = 0
             while i < len(addrs):
                 start = addrs[i]
-                # collect contiguous run of up to bytes_per_record
+                segment = start >> 16
+                if segment != cur_segment:
+                    if segment != 0 or cur_segment != -1:
+                        self._emit(f, 0x04, 0,
+                                   bytes([(segment >> 8) & 0xFF, segment & 0xFF]))
+                    cur_segment = segment
+                seg_end = (segment + 1) << 16
                 run: list[int] = []
-                while i < len(addrs) and addrs[i] == start + len(run) and len(run) < bytes_per_record:
+                while (i < len(addrs)
+                       and addrs[i] == start + len(run)
+                       and addrs[i] < seg_end
+                       and len(run) < bytes_per_record):
                     run.append(self.data[addrs[i]])
                     i += 1
-                self._emit(f, 0x00, start, bytes(run))
+                self._emit(f, 0x00, start & 0xFFFF, bytes(run))
             self._emit(f, 0x01, 0, b"")  # EOF
 
     @staticmethod
