@@ -1,13 +1,21 @@
 # DCN-AVR-EA-Bootloader
 
 Serial bootloader for AVR EA-series microcontrollers (AVR64EA28/32/48 and
-relatives), riding on the existing Device Control Network **(DCN)** protocol
-developed by Sierra Radio Systems  (https://www.sierraradio.net/)
+relatives), riding on the existing Device Control Network **(DCN)** protocol.
 This protocol is supported by the Smart Power Switch (SPS-1) and will be supported
-by future A2Z Tech products. 
+by future A2Z Tech products intended for the Station Controller ecosystem.
+
+## What is DCN
+The Device Control Network protocol was developed by George Zafiropoulos, KJ6VU of eveloped by Sierra Radio Systems  (https://www.sierraradio.net/) and used by SRS Station Controller Products.  It is a simple, human readable, serial protocol intended use on half-duplex communication networks such as RS-485 or LoRa data radios.
+
+## Bootloader overview
+The bootload protocol is designed to be compatible with DCN.  As such, a device could theoretically be re-loaded while connected to a DCN network with other devices.  Other than a short period of extremely heavy traffic from the program data, the network should be unaffected.
+However, it is envisioned that devices that need to be updated will typically be directly connected to an RS-485 serail port, stand-alone, on a PC for program updates.
+
 The intent is for the bootloader to be common across all Microchip AVRxxEA series 
-microcontrollers.  Product unique settings, like bootloader entry mechanism settings
-live in one small header.
+microcontrollers used in this product line.  Product unique settings, like bootloader entry mechanism settings live in one small header.
+
+This project is written specifically for Microchip AVR EA series microcontrollers.  However, the code and protocol could easily be ported to other processors and languages as needed.
 
 ## What it does
 
