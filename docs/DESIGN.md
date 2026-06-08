@@ -18,14 +18,6 @@ units (datasheet §8.8.2.7):
        BOOTSIZE = 0x10              CODESIZE = 0x00
 ```
 
-Why 4 KB and not 2 KB: XC8 for AVR's free edition downgrades `-Os` to
-`-O1`, which leaves the bootloader binary at ~3.4 KB. The full open-source
-avr-gcc with real `-Os` would fit in <2 KB, but we default the BOOT
-section to 4 KB so the bootloader builds out of the box with the XC8
-free toolchain. Override `BL_FUSE_BOOTSIZE` and the matching `BOOT_SIZE`
-Makefile variable if you have the licensed XC8 PRO compiler or are
-building with stock avr-gcc and want to shrink BOOT to 2 KB.
-
 `CODESIZE=0` means "APPCODE fills flash from BOOTEND+1 to FLASHEND, no
 APPDATA section" (datasheet §11.3.1.1.2). We pick that to keep the app
 as large as possible — the SPS-1 currently builds to ~14 KB so there's
@@ -77,7 +69,7 @@ the megaAVR 0 / AVR Dx family (§15.3.2.2). When `IVSEL = 0` (the
 default), interrupt vectors live at the start of APPCODE.
 
 The bootloader sets `IVSEL = 0` (or leaves the default) and disables
-interrupts globally. The application, linked to start at `0x0800`,
+interrupts globally. The application, linked to start at `0x1000`,
 gets its own vector table at the start of APPCODE — exactly where
 the CPU expects it. No trampolines, no forwarders, no runtime
 indirection cost. Just two normal AVR binaries that happen to live
