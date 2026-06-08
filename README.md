@@ -1,9 +1,13 @@
 # DCN-AVR-EA-Bootloader
 
 Serial bootloader for AVR EA-series microcontrollers (AVR64EA28/32/48 and
-relatives), riding on the existing **DCN** protocol used by the SPS-1 and
-other A2Z Tech products. Designed to be the same code base across multiple
-products — per-product settings live in one small header.
+relatives), riding on the existing Device Control Network **(DCN)** protocol
+developed by Sierra Radio Systems  (https://www.sierraradio.net/)
+This protocol is supported by the Smart Power Switch (SPS-1) and will be supported
+by future A2Z Tech products. 
+The intent is for the bootloader to be common across all Microchip AVRxxEA series 
+microcontrollers.  Product unique settings, like bootloader entry mechanism settings
+live in one small header.
 
 ## What it does
 
@@ -151,20 +155,6 @@ make PRODUCT=NewProduct
 
 The product config must define MCU-specific UART, clock, port-init, and
 trigger-detection macros. See the template for the full list.
-
-## Status / open items
-
-First bench bring-up on the SPS-1 confirmed BLINFO request/response over
-the DCN bus. Remaining points to verify:
-
-- The `jmp BL_APP_START` inline-asm in `bl_main.c` produces the expected
-  4-byte encoding. Inspect the `.lss` output around `jump_to_app`.
-- Per-page program time at 9600 baud → total update time is acceptable
-  for production use (~2.5 minutes for a full 60 KB image).
-- ~~SPS-1 UART config (`CTRLA=0x09`, `CTRLB=RXEN|TXEN|ODME`) matches the
-  application's setup~~ — bench-confirmed. Note that RS-485 mode 1 also
-  requires the XDIR pin's PORT.DIR bit set to output; this is handled in
-  the SPS-1 product config's `BL_PORT_INIT` (PA3 alongside PA0).
 
 See `docs/DESIGN.md` for the full rationale and a list of carrying-over
 open questions.

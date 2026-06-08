@@ -45,3 +45,6 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+
+#Claude Code files
+.claude/
