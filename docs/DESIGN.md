@@ -166,26 +166,14 @@ Everything else is portable. A new product is one new header.
 
 ## Carrying-over open items
 
-1. ~~**Inline `jmp` constant encoding**~~ — *Resolved (SPS-1 build,
-   avr-gcc via XC8 v3.10):* `asm volatile("jmp %0" :: "i"(BL_APP_START))`
-   emits `0c 94 00 08` — opcode word `0x940c` + word-address `0x0800`,
-   i.e. `jmp 0x1000`. Matches `BL_APP_START`. No assembler-side surprise
-   in converting the byte-address operand to the word-address encoding.
-2. **WDT lock behaviour** — if a previous app fuse-set a locked
+
+1. **WDT lock behaviour** — if a previous app fuse-set a locked
    WDT, the bootloader's `_PROTECTED_WRITE(WDT.CTRLA, 0)` is a
    no-op. Programming sequences finish in <10 ms, well inside any
    reasonable WDT window, so this is unlikely to matter in
    practice but worth confirming.
-3. ~~**F_CPU vs. fuse OSCCFG**~~ — *Resolved (cross-checked against the
-   SPS-1 application's MPLAB-generated `config_bits.c`):* both
-   bootloader and application emit `OSCCFG = OSCHFFRQ_20M_gc`, which
-   per ioavr64ea28.h encodes to byte `0x00`. The OSCHF reset default
-   on AVR EA is already 20 MHz with that fuse, and `BL_CLOCK_INIT()`
-   divides by 2 → 10 MHz CPU = `F_CPU=10000000UL`. A future port to a
-   product with a different `OSCCFG` should keep the relationship
-   `(OSCHF_MHz / BL_CPU_DIV) * 1e6 == F_CPU` consistent in the
    product config + Makefile pair.
-4. **Verify-CRC range** — we exclude the trailer bytes themselves
+2. **Verify-CRC range** — we exclude the trailer bytes themselves
    from the CRC computation. The host-side `patch_app_crc.py`
    matches this convention. If the convention ever changes, both
    sides must change together.
