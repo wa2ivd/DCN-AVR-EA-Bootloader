@@ -123,6 +123,14 @@ int main(void)
         jump_to_app();
     }
 
+    /* The USB-to-serial bridge needs time after power-up to enumerate with
+     * a host before its USBCFG output means anything; bl_uart_init() latches
+     * the port choice off that pin. Only the stay-in-bootloader path pays
+     * this delay, so a normal boot into the application is not slowed. */
+#ifdef BL_USB_SETTLE_MS
+    _delay_ms(BL_USB_SETTLE_MS);
+#endif
+
     bl_uart_init();
 
     for (;;) {

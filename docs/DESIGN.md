@@ -151,6 +151,10 @@ Anything that touches the bus or the board is in
 `products/<name>/bl_product_config.h`:
 
 - UART instance, CTRLA / CTRLB values, baud
+- Optional second UART for a USB-to-serial bridge (`BL_USART_USB` +
+  `BL_USB_PRESENT()`): the bridge's "configured by host" pin is sampled
+  once after a settle delay and the whole session runs on that port,
+  with the other USART never enabled
 - F_CPU and clock-init macro
 - Port-init macro (UART pins, trigger pull-ups, etc.)
 - Trigger-detection expression

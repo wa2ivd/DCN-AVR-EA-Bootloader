@@ -34,6 +34,20 @@
 /* #define BL_USART_CTRLA  0x00 */
 /* #define BL_USART_CTRLB  (USART_RXEN_bm | USART_TXEN_bm) */
 
+/* Optional second host port: a USB-to-serial bridge on another USART.
+ * When BL_USART_USB is defined, bl_uart_init() samples BL_USB_PRESENT()
+ * once (bl_main waits BL_USB_SETTLE_MS first so the bridge has time to
+ * enumerate) and runs the whole session on whichever port is active —
+ * BL_USART_USB when the pin reads high, BL_USART otherwise. The
+ * unselected USART is never enabled. Baud and 8N1 framing are shared
+ * with the primary port. BL_PORT_INIT must still set up the second
+ * port's TX pin (output, idle high) and the status pin (input). */
+/* #define BL_USART_USB        USART2 */
+/* #define BL_USART_USB_CTRLA  0x00 */
+/* #define BL_USART_USB_CTRLB  (USART_RXEN_bm | USART_TXEN_bm) */
+/* #define BL_USB_PRESENT()    ((VPORTA.IN & PIN1_bm) != 0) */
+/* #define BL_USB_SETTLE_MS    500u */
+
 /* Memory layout — must agree with bl_fuses.c BL_FUSE_BOOTSIZE.
  *   Default BOOTSIZE = 0x10 → BOOT is 0x0000–0x0FFF (4 KB).
  *   APPCODE starts immediately after, at BL_APP_START. */
