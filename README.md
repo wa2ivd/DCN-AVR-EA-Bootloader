@@ -30,11 +30,40 @@ This project is written specifically for Microchip AVR EA series microcontroller
 - In update / recovery mode, speaks a tiny set of DCN-framed commands over
   the same UART the application uses. The host (`tools/bl_flash.py`) drives
   erase → page-by-page write → verify → reset.
+- On products with a USB serial port (SPS-1 hardware with the USB-to-serial
+  bridge), automatically selects between the RS-485 bus and USB as the host
+  port at startup — see below.
 
 The application itself contains **no** bootloader-entry code. The only way
 into the bootloader is the hardware switch or a bad image — which means a
 field unit can't be bricked by a runaway app entering the bootloader by
 mistake.
+
+## USB serial support
+
+Products can define a second, USB-facing UART in their config
+(`BL_USART_USB` + `BL_USB_PRESENT()`). On the SPS-1 this is a USB-to-serial
+bridge on USART2 (PF0 = TX to bridge, PF1 = RX from bridge); the bridge's
+USBCFG status output on PA1 reads high once a USB host has enumerated it.
+
+Port selection is automatic:
+
+- After deciding to stay in the bootloader, the firmware waits 500 ms
+  (`BL_USB_SETTLE_MS`) so the bridge has time to enumerate, then samples
+  USBCFG once.
+- **USBCFG high** (USB cable connected to a host) → the whole session runs
+  on USART2; the RS-485 port is ignored.
+- **USBCFG low** (no USB host) → the session runs on USART0 / RS-485 as
+  before; USART2 is ignored.
+
+The "ignored" port is simply never enabled, so it can neither receive nor
+transmit. Baud rate, framing (8N1), protocol, and host tooling are identical
+on both ports — `bl_flash.py` doesn't know or care which one it's talking
+through. The choice is latched for the session: plugging or unplugging USB
+takes effect on the next reset (power cycle or `BLRESET`).
+
+A normal boot into the application is **not** delayed — the 500 ms settle
+wait only happens once the bootloader has already decided to stay resident.
 
 ## Repository layout
 
@@ -147,8 +176,10 @@ Then flash via the bootloader:
 
 ```sh
 # 1. Set the device's BCD switch to position F.
-# 2. Power-cycle.
-# 3. Run the updater:
+# 2. Power-cycle. (If updating over USB, have the cable plugged in before
+#    power-up — the port choice is sampled 500 ms after entry.)
+# 3. Run the updater, pointing --port at either the RS-485 adapter or the
+#    device's own USB serial port:
 python tools/bl_flash.py --port COM5 --hex build/SPS-1.crc.hex
 # 4. When it finishes, set the switch back to the normal address.
 ```
