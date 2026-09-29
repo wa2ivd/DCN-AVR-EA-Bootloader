@@ -98,7 +98,10 @@ DCN-AVR-EA-Bootloader/
     └── PROTOCOL.md             wire-level protocol reference
 ```
 
-## Quick start (SPS-1)
+## Quick start
+
+There are no Windows or other OS Packages for this repository.  The code must be
+built for the specific AVR (or other controller) chip that you intend to use it in.
 
 ### Building the bootloader
 
@@ -119,7 +122,11 @@ Run it from git-bash or MSYS2 — the Makefile uses `rm -rf` / `mkdir -p`, so a
 bash environment is required either way. Toolchain locations the wrapper checks
 are documented in the header of [build.sh](build.sh).
 
-**Linux / macOS:** put `avr-gcc` and the DFP somewhere the compiler can find
+**Linux / macOS:**
+NOTE:  I do not have a MAC and I have not tested or built this in Linux.  These instructions
+are approximate and furnished AS-IS.
+
+put `avr-gcc` and the DFP somewhere the compiler can find
 them and call `make` directly (or `./build.sh`, which becomes a thin pass-through
 on non-Windows hosts).
 
@@ -141,7 +148,9 @@ section (default 2 KB).
 ### First-time programming via UPDI
 
 The bootloader can only be flashed via UPDI — there is no in-system
-bootstrap path. Once flashed, all future updates go through the bootloader.
+bootstrap path. Once flashed, all future application updates go through the bootloader.
+There is currently no provision to update the bootloader via the bootloader.
+Bootloader updates must be done via a UPDI programmer.
 
 **MPLAB IPE (or Atmel Studio):** load `build/SPS-1/SPS-1-bootloader.hex`,
 hit Program. The hex contains both flash and fuse bytes; IPE programs
