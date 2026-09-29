@@ -56,17 +56,17 @@ SPS-1 it reads the DCN address BCD switch and matches against position
 held during power-up, an EEPROM byte set out-of-band — anything you can
 turn into a boolean expression.
 
-There is **no** in-band command to enter the bootloader. This is
-deliberate: the application has no knowledge of the bootloader's
-existence and cannot be tricked into a forced update by a bus message.
+In the SPS-1 implementation, there is no application command to trigger
+entry into the bootloader.
+If fully remote update capability is required, the application code could
+write a specific byte sequence to EEPROM and then trigger a reset.  The
+bootloader would need to be modified to look for and reset the EEPROM
+sequence on startup.
+In this scenario, the DCN network controller would need to take some 
+additional steps like periodically checking for a device in bootload mode on
+the bus in the event something inadvertently triggered a bootloader start.
 
-## Why no vector trampolines
-
-The original plan called for a vector forwarding table because we
-assumed AVR EA, like older AVRs, vectored interrupts to a fixed
-address. The datasheet confirms it has `CPUINT.CTRLA.IVSEL` — same as
-the megaAVR 0 / AVR Dx family (§15.3.2.2). When `IVSEL = 0` (the
-default), interrupt vectors live at the start of APPCODE.
+## Interrupt vectors
 
 The bootloader sets `IVSEL = 0` (or leaves the default) and disables
 interrupts globally. The application, linked to start at `0x1000`,
@@ -129,6 +129,8 @@ The "erased trailer reads 0xFFFF" case is handled specially: the
 bootloader treats `0xFFFF` as **always invalid** even if a real CRC
 happens to compute to `0xFFFF`. This keeps "freshly erased flash" and
 "valid image" unambiguous.
+NOTE:  An application with a computed a CRC of 0xFFFF would need to add
+a dummy byte of variable anywhere in the code to force a different CRC value.
 
 ## Power-loss safety
 

@@ -1,8 +1,7 @@
 # DCN-AVR-EA-Bootloader Wire Protocol
 
 The bootloader speaks a small subset of the DCN protocol used by the
-application firmware, so they can share an RS-485 / single-wire bus
-without conflict.
+application firmware, so they can share an RS-485 bus without conflict.
 
 ## Framing
 

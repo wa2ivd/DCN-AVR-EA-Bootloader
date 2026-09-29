@@ -1,21 +1,33 @@
 # DCN-AVR-EA-Bootloader
 
 Serial bootloader for AVR EA-series microcontrollers (AVR64EA28/32/48 and
-relatives), riding on the existing Device Control Network **(DCN)** protocol.
-This protocol is supported by the Smart Power Switch (SPS-1) and will be supported
-by future A2Z Tech products intended for the Station Controller ecosystem.
+relatives), riding on the Device Control Network **(DCN)** protocol.
+This Bootloader was initially developed for the SPS-1 Smart Switch by A2Z Tech LLC.
+The plan is to include this or a compatible Bootloader for any future A2Z products designed to
+work in the DCN / Station Controller eco-system.
 
 ## What is DCN
-The Device Control Network protocol was developed by George Zafiropoulos, KJ6VU of eveloped by Sierra Radio Systems  (https://www.sierraradio.net/) and used by SRS Station Controller Products.  It is a simple, human readable, serial protocol intended use on half-duplex communication networks such as RS-485 or LoRa data radios.
+The Device Control Network protocol was developed by George Zafiropoulos, KJ6VU of Sierra Radio Systems and Packtenna
+(https://www.sierraradio.net/) and used by SRS Station Controller Products.  It is a simple, human readable, serial protocol
+intended use on half-duplex communication networks such as RS-485 or LoRa data radios.
 
 ## Bootloader overview
-The bootload protocol is designed to be compatible with DCN.  As such, a device could theoretically be re-loaded while connected to a DCN network with other devices.  Other than a short period of extremely heavy traffic from the program data, the network should be unaffected.
-However, it is envisioned that devices that need to be updated will typically be directly connected to an RS-485 serail port, stand-alone, on a PC for program updates.
+The bootload protocol (see PROTOCOL.md in docs) is designed to be compatible with DCN.  As such, a device could theoretically
+be updated while connected to a DCN network with other devices.  Other than a short period of extremely heavy traffic from the
+program data, the network should be unaffected.
+However, it is envisioned that devices that need to be updated will typically be directly connected to a USB or RS-485 serial
+port, stand-alone, on a PC for program updates.
+In this implementation, the device DCN address when the Bootloader is active is fixed at "BB".  This would limit in-network updates
+to 1 device at a time.  This likely will not present any "real" restrictions as it is unlikely that there would be a need to update
+multiple devices on a network simultaneously.
+NOTE:  A DCN address of "BB" doesn't strictly follow the published protocol as the DCN documentation states that valid addresses
+are from 00-99.
 
 The intent is for the bootloader to be common across all Microchip AVRxxEA series 
 microcontrollers used in this product line.  Product unique settings, like bootloader entry mechanism settings live in one small header.
 
-This project is written specifically for Microchip AVR EA series microcontrollers.  However, the code and protocol could easily be ported to other processors and languages as needed.
+This project is written specifically for Microchip AVR EA series microcontrollers.  However, the code and protocol could easily be
+ported to other processors and languages as needed.
 
 ## What it does
 
@@ -34,10 +46,6 @@ This project is written specifically for Microchip AVR EA series microcontroller
   bridge), automatically selects between the RS-485 bus and USB as the host
   port at startup — see below.
 
-The application itself contains **no** bootloader-entry code. The only way
-into the bootloader is the hardware switch or a bad image — which means a
-field unit can't be bricked by a runaway app entering the bootloader by
-mistake.
 
 ## USB serial support
 
@@ -48,13 +56,11 @@ USBCFG status output on PA1 reads high once a USB host has enumerated it.
 
 Port selection is automatic:
 
-- After deciding to stay in the bootloader, the firmware waits 500 ms
-  (`BL_USB_SETTLE_MS`) so the bridge has time to enumerate, then samples
-  USBCFG once.
-- **USBCFG high** (USB cable connected to a host) → the whole session runs
-  on USART2; the RS-485 port is ignored.
-- **USBCFG low** (no USB host) → the session runs on USART0 / RS-485 as
-  before; USART2 is ignored.
+After deciding to stay in the bootloader, the firmware waits 500 ms for power and port conditions to stabilize.  In the SPS-1,
+port PA1 is tied to 3.3V power from the USB port.  If this pin his high, then USB port power is being provided and the assumption is
+that we are connected to a USB port and will use the USB-UART bridge port for communication.  If it is low, then the RS-485 UART is used.
+A more definitive test would be to check the bridge chip to see if the USB port has been enumarated.  This is provided by a USBCFG pin
+on the chip used in the SPS-1.  However, this pin proved to be unreliable in testing.  So USB power is being used instead.
 
 The "ignored" port is simply never enabled, so it can neither receive nor
 transmit. Baud rate, framing (8N1), protocol, and host tooling are identical
