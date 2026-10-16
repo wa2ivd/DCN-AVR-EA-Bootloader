@@ -8,8 +8,8 @@ work in the DCN / Station Controller eco-system.
 
 ## What is DCN
 The Device Control Network protocol was developed by George Zafiropoulos, KJ6VU of Sierra Radio Systems and Packtenna
-(https://www.sierraradio.net/) and used by SRS Station Controller Products.  It is a simple, human readable, serial protocol
-intended use on half-duplex communication networks such as RS-485 or LoRa data radios.
+([https://www.packtenna.com/station-controller.html#/](https://www.packtenna.com/station-controller.html#/)) and used by SRS Station Controller Products.
+It is a simple, human readable, serial protocol intended use on half-duplex communication networks such as RS-485 or LoRa data radios.
 
 ## Bootloader overview
 The bootload protocol (see PROTOCOL.md in docs) is designed to be compatible with DCN.  As such, a device could theoretically
@@ -34,7 +34,7 @@ ported to other processors and languages as needed.
 - Lives in the BOOT section of flash (4 KB by default, fuse-configured).
 - Runs first on every reset.
 - Decides between three paths:
-  1. **Hardware trigger asserted** (e.g. SPS-1 BCD address switch set to 0xF)
+  1. **Hardware trigger asserted** (e.g. SPS-1 BCD ADDR switch set to 0xF)
      → enter update mode.
   2. **Application image invalid** (CRC trailer mismatch) → enter recovery
      mode (same protocol, just no operator action).
@@ -64,9 +64,11 @@ on the chip used in the SPS-1.  However, this pin proved to be unreliable in tes
 
 The "ignored" port is simply never enabled, so it can neither receive nor
 transmit. Baud rate, framing (8N1), protocol, and host tooling are identical
-on both ports — `bl_flash.py` doesn't know or care which one it's talking
-through. The choice is latched for the session: plugging or unplugging USB
-takes effect on the next reset (power cycle or `BLRESET`).
+on both ports.
+`bl_flash.py`, is a host side script to program a device with the bootloader.  It is included in the tools folder of the repository.
+It doesn't know or care which port it's talking through. It does need to be configured for the correct serial device in the script.
+In the device, the choice is latched for the power cycle: plugging or unplugging USB will not take effect until the next reset or power
+cycle if the device is being powered by both the 12V power input and the USB port.
 
 A normal boot into the application is **not** delayed — the 500 ms settle
 wait only happens once the bootloader has already decided to stay resident.
