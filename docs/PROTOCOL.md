@@ -160,8 +160,8 @@ requires changing `BL_BAUD` in the product config and recompiling.
 
 The application's DCN parser silently ignores unknown keywords, so stray
 bootloader traffic on the bus does not cause it to misbehave. There is
-one transient effect: a `BLDATA` frame is longer than the application's
-50-byte receive buffer, so the application will see the buffer fill,
+one transient effect: a `BLDATA` frame may be longer than an application's
+receive buffer, so the application will see the buffer fill,
 discard the frame mid-stream, and resume on the next `/`. As long as no
 operational commands are sent during a firmware update, this is
 harmless.
